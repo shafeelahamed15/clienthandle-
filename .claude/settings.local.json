@@ -81,7 +81,9 @@
       "Bash(PORT=3002 npm run dev)",
       "Bash(start https://clienthandle.com/sign-in)",
       "Bash(git commit:*)",
-      "Bash(del test-auth.js)"
+      "Bash(del test-auth.js)",
+      "Bash(start https://clienthandle-mkqd9vh2b-shafeel-ahemds-projects.vercel.app)",
+      "WebFetch(domain:clienthandle-mkqd9vh2b-shafeel-ahemds-projects.vercel.app)"
     ],
     "deny": [],
     "ask": [],
