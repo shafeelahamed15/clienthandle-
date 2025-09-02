@@ -18,6 +18,7 @@ export default function SignUpPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,6 +32,7 @@ export default function SignUpPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
@@ -45,16 +47,27 @@ export default function SignUpPage() {
       return;
     }
 
-    const { user, error: authError } = await signUp(
-      formData.email, 
-      formData.password, 
-      formData.displayName
-    );
+    try {
+      const { data, error: authError } = await signUp(
+        formData.email, 
+        formData.password, 
+        formData.displayName
+      );
 
-    if (authError) {
-      setError(authError);
-    } else if (user) {
-      router.push("/onboarding");
+      if (authError) {
+        setError(authError.message);
+      } else if (data?.user) {
+        // Check if user has a session (logged in immediately) or needs confirmation
+        if (data.session) {
+          // User is logged in immediately (email confirmation disabled)
+          router.push("/onboarding");
+        } else {
+          // User needs to confirm their email
+          setSuccess(`We've sent you a confirmation email at ${formData.email}. Please check your inbox and click the link to activate your account, then come back here to sign in.`);
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred during sign up");
     }
 
     setLoading(false);
@@ -63,6 +76,7 @@ export default function SignUpPage() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError("");
+    setSuccess("");
 
     const { user, error: authError } = await signInWithGoogle();
 
@@ -94,12 +108,36 @@ export default function SignUpPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
-                <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
-                  {error}
+            {success ? (
+              <div className="space-y-6">
+                <div className="p-4 text-sm text-green-700 bg-green-50 rounded-lg border border-green-200 text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="font-medium mb-1">Check your email!</p>
+                  <p>{success}</p>
                 </div>
-              )}
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/sign-in")}
+                  className="w-full h-12"
+                >
+                  Go to Sign In
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
+                    {error}
+                  </div>
+                )}
               
               <div className="space-y-2">
                 <Label htmlFor="displayName" className="text-body-small font-medium">
@@ -173,8 +211,11 @@ export default function SignUpPage() {
                 {loading ? "Creating account..." : "Create Account"}
               </Button>
             </form>
+            )}
 
-            <div className="relative my-6">
+            {!success && (
+              <>
+                <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-200"></div>
               </div>
@@ -223,6 +264,8 @@ export default function SignUpPage() {
                 </Link>
               </p>
             </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

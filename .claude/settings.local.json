@@ -73,7 +73,15 @@
       "Bash(netstat:*)",
       "Bash(PORT=3002 npm start)",
       "Bash(git add:*)",
-      "Bash(del nul)"
+      "Bash(del nul)",
+      "Bash(git push:*)",
+      "Bash(git remote add:*)",
+      "Bash(start https://clienthandle.com)",
+      "WebFetch(domain:clienthandle-phib5upkf-shafeel-ahemds-projects.vercel.app)",
+      "Bash(PORT=3002 npm run dev)",
+      "Bash(start https://clienthandle.com/sign-in)",
+      "Bash(git commit:*)",
+      "Bash(del test-auth.js)"
     ],
     "deny": [],
     "ask": [],
