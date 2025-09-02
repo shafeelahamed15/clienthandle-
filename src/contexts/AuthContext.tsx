@@ -89,6 +89,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('⏭️ Skipping INITIAL_SESSION (already processed)')
           return
         }
+        
+        // For SIGNED_IN event, ensure we process it even if initial check is complete
+        if (event === 'SIGNED_IN') {
+          console.log('✅ Processing SIGNED_IN event')
+        }
 
         setUser(session?.user ?? null)
         
@@ -109,8 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (mounted) setProfile(null)
         }
         
-        // Only set loading to false if initial check is complete
-        if (initialCheckComplete && mounted) {
+        // Set loading to false after processing auth state change
+        if (mounted) {
           setLoading(false)
         }
       }

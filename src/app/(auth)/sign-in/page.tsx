@@ -16,14 +16,15 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // Redirect if already signed in
   useEffect(() => {
-    if (user) {
-      router.push("/dashboard");
+    if (!authLoading && user) {
+      console.log('🔄 User detected in sign-in page, redirecting to dashboard...');
+      router.replace("/dashboard");
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,16 +36,20 @@ export default function SignInPage() {
       const result = await signIn(email, password);
       console.log('Sign-in result:', result.user?.email);
       
-      // Force immediate redirect to dashboard
-      console.log('🔄 Redirecting to dashboard...');
-      await router.push('/dashboard');
-      
-      // Also set a backup redirect
-      setTimeout(() => {
-        if (window.location.pathname !== '/dashboard') {
-          window.location.href = '/dashboard';
-        }
-      }, 500);
+      if (result.user) {
+        // Wait a moment for the auth context to update
+        console.log('✅ Sign-in successful, waiting for auth context update...');
+        
+        // The useEffect hook will handle the redirect when user state updates
+        // Just wait for it to happen naturally
+        setTimeout(() => {
+          // Only force redirect if the context hasn't updated yet
+          if (window.location.pathname === '/sign-in') {
+            console.log('🔄 Manual redirect to dashboard...');
+            router.replace('/dashboard');
+          }
+        }, 1000);
+      }
     } catch (err: any) {
       console.error('Sign-in error:', err);
       
@@ -78,6 +83,18 @@ export default function SignInPage() {
 
     setLoading(false);
   };
+
+  // Show loading while checking authentication status
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+        <div className="text-center">
+          <div className="w-8 h-8 bg-primary rounded-lg animate-pulse mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-6">
