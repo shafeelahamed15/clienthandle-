@@ -83,7 +83,8 @@
       "Bash(git commit:*)",
       "Bash(del test-auth.js)",
       "Bash(start https://clienthandle-mkqd9vh2b-shafeel-ahemds-projects.vercel.app)",
-      "WebFetch(domain:clienthandle-mkqd9vh2b-shafeel-ahemds-projects.vercel.app)"
+      "WebFetch(domain:clienthandle-mkqd9vh2b-shafeel-ahemds-projects.vercel.app)",
+      "Bash(git remote set-url:*)"
     ],
     "deny": [],
     "ask": [],
