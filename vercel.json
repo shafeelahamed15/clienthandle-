@@ -1,0 +1,35 @@
+{
+  "functions": {
+    "src/app/api/cron/**": {
+      "maxDuration": 300
+    },
+    "src/app/api/process-scheduled-emails/**": {
+      "maxDuration": 300
+    },
+    "src/app/api/ai/compose/**": {
+      "maxDuration": 30
+    },
+    "src/app/api/followups/**": {
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ]
+}
