@@ -59,8 +59,6 @@ export interface InvoiceFormData {
     unit_price_cents: number
     total_cents: number
   }>
-  tax_percentage: number
-  notes?: string
   status: 'draft' | 'sent'
 }
 
@@ -79,8 +77,6 @@ export function InvoiceForm({
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { description: '', qty: 0, unit_price: 0, total: 0 }
   ])
-  const [taxPercentage, setTaxPercentage] = useState(0)
-  const [notes, setNotes] = useState('')
 
   // Auto-generate invoice number
   useEffect(() => {
@@ -116,11 +112,11 @@ export function InvoiceForm({
         dueDate,
         lineItems,
         selectedClient: selectedClient || null,
-        taxPercentage,
-        notes,
+        taxPercentage: 0,
+        notes: '',
       })
     }
-  }, [lineItems, selectedClientId, invoiceNumber, currency, dueDate, taxPercentage, notes, clients])
+  }, [lineItems, selectedClientId, invoiceNumber, currency, dueDate, clients])
 
 
   const updateLineItem = (index: number, field: keyof LineItem, value: string | number) => {
@@ -146,16 +142,8 @@ export function InvoiceForm({
     }
   }
 
-  const calculateSubtotal = () => {
-    return lineItems.reduce((sum, item) => sum + item.total, 0)
-  }
-
-  const calculateTax = () => {
-    return (calculateSubtotal() * taxPercentage) / 100
-  }
-
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateTax()
+    return lineItems.reduce((sum, item) => sum + item.total, 0)
   }
 
   const handleSubmit = async (status: 'draft' | 'sent') => {
@@ -176,8 +164,6 @@ export function InvoiceForm({
         unit_price_cents: Math.round(item.unit_price * 100),
         total_cents: Math.round(item.total * 100),
       })),
-      tax_percentage: taxPercentage,
-      notes: notes || undefined,
       status: status,
     }
 
@@ -393,40 +379,10 @@ export function InvoiceForm({
             ))}
           </div>
 
-          {/* Tax & Totals */}
-          <div className="mt-4 space-y-3">
-            {/* Tax Percentage Input */}
+          {/* Total Display */}
+          <div className="mt-4">
             <div className="flex justify-end">
               <div className="w-64">
-                <Label className="text-sm font-medium text-gray-700">Tax Percentage (%)</Label>
-                <Input
-                  type="number"
-                  value={taxPercentage || ''}
-                  onChange={(e) => {
-                    setTaxPercentage(parseFloat(e.target.value) || 0);
-                  }}
-                  placeholder="0"
-                  className="h-9 bg-gray-50 border-gray-200 mt-1"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                />
-              </div>
-            </div>
-
-            {/* Calculations Display */}
-            <div className="flex justify-end">
-              <div className="w-64 space-y-2">
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Subtotal:</span>
-                  <span className="font-medium">{formatAmount(calculateSubtotal())}</span>
-                </div>
-                {taxPercentage > 0 && (
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Tax ({taxPercentage}%):</span>
-                    <span className="font-medium">{formatAmount(calculateTax())}</span>
-                  </div>
-                )}
                 <div className="bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
                   <div className="flex justify-between text-sm text-blue-700">
                     <span className="font-medium">Total:</span>
@@ -440,19 +396,6 @@ export function InvoiceForm({
           </div>
         </div>
 
-        {/* Notes */}
-        <div>
-          <Label className="text-sm font-medium text-gray-700">Additional Notes</Label>
-          <Textarea
-            value={notes}
-            onChange={(e) => {
-              setNotes(e.target.value);
-            }}
-            placeholder="Payment terms, additional information, or special instructions..."
-            rows={3}
-            className="bg-gray-50 border-gray-200 resize-none mt-1"
-          />
-        </div>
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-4">

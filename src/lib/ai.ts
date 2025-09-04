@@ -186,9 +186,12 @@ export async function generateFollowupOpenAI(
         { role: 'system', content: SYSTEM_PROMPTS[tone] },
         { role: 'user', content: redactedPrompt }
       ],
-      max_tokens: 200,
+      max_tokens: 150, // Reduced from 200 for faster generation
       temperature: context.campaignCount && context.campaignCount > 1 ? 0.9 : 0.7, // Higher creativity for recurring campaigns
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
+      // Performance optimizations
+      timeout: 10000, // 10 second timeout
+      stream: false // Ensure non-streaming for consistent performance
     })
 
     const message = completion.choices[0]?.message?.content
@@ -196,12 +199,20 @@ export async function generateFollowupOpenAI(
       throw new Error('No message generated from OpenAI')
     }
 
+    // Clean and sanitize the message content
+    const cleanMessage = message.trim()
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+      .replace(/[\uFFF0-\uFFFF]/g, '') // Remove specials
+      .normalize('NFC') // Normalize unicode
+
     // Parse the JSON response
     let parsed: { subject?: string; body?: string }
     try {
-      parsed = JSON.parse(message.trim())
+      parsed = JSON.parse(cleanMessage)
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON:', parseError)
+      console.error('Raw message:', message)
+      console.error('Cleaned message:', cleanMessage)
       throw new Error('AI response was not valid JSON')
     }
 
@@ -444,7 +455,9 @@ export async function generateFollowupAngle(input: AngleInput): Promise<{
       model: 'gpt-4o-mini',
       messages: messages as Array<{ role: 'system' | 'user'; content: string }>,
       temperature: 0.6,
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
+      max_tokens: 120, // Reduced for faster generation
+      timeout: 8000 // 8 second timeout
     });
 
     const content = response.choices[0]?.message?.content;

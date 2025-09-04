@@ -10,7 +10,6 @@ import { SmartScheduler } from "@/components/automation/SmartScheduler";
 import { ToastProvider } from "@/components/ui/toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { HomeIcon, UsersIcon, InvoicesIcon, MessagesIcon, SettingsIcon } from "@/components/icons";
-import { CreditCard } from "lucide-react";
 
 const sidebarItems = [
   {
@@ -38,11 +37,6 @@ const sidebarItems = [
     label: "Settings",
     icon: <SettingsIcon size="sm" />,
   },
-  {
-    href: "/subscription",
-    label: "Subscription",
-    icon: <CreditCard className="w-4 h-4" />,
-  },
 ];
 
 export default function AppLayout({
@@ -53,8 +47,10 @@ export default function AppLayout({
   const { user, profile, loading } = useAuth();
   const router = useRouter();
 
+  // AUTHENTICATION REQUIRED - SECURITY ENABLED
   useEffect(() => {
     if (!loading && !user) {
+      console.log('🔒 No authenticated user, redirecting to sign-in');
       router.push("/sign-in");
     }
   }, [user, loading, router]);
@@ -80,11 +76,11 @@ export default function AppLayout({
         </div>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-slate-100/50 to-blue-100/20">
+        <div className="flex-1 flex flex-col bg-gradient-to-br from-slate-100/50 to-blue-100/20 relative">
           <Topbar 
             user={{
-              displayName: profile?.display_name || user.user_metadata?.display_name || "User",
-              email: user.email || "",
+              displayName: profile?.display_name || user?.user_metadata?.display_name || "Development User",
+              email: user?.email || "dev@clienthandle.com",
             }}
           />
           <main className="flex-1 overflow-auto">
@@ -95,8 +91,8 @@ export default function AppLayout({
         {/* Floating Feedback Widget */}
         <FeedbackWidget />
         
-        {/* Smart Scheduler - Replaces cron jobs for Hobby plan */}
-        <SmartScheduler />
+        {/* Smart Scheduler - Disabled during auth bypass */}
+        {/* <SmartScheduler /> */}
       </div>
     </ToastProvider>
   );

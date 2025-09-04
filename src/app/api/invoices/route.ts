@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { mockInvoicesService, mockClientsService, MOCK_MODE } from '@/lib/mock-data';
 import { z } from 'zod';
 
 // Line item validation schema
@@ -19,8 +18,6 @@ const CreateInvoiceSchema = z.object({
   amount_cents: z.number().min(1, 'Amount must be greater than 0'),
   due_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid due date'),
   line_items: z.array(LineItemSchema).min(1, 'At least one line item is required'),
-  tax_percentage: z.number().min(0).max(100).default(0),
-  notes: z.string().optional(),
   status: z.enum(['draft', 'sent']).default('draft'),
 });
 
@@ -28,155 +25,19 @@ const UpdateInvoiceSchema = CreateInvoiceSchema.partial().extend({
   id: z.string().min(1, 'Invoice ID is required'),
 });
 
-// Mock invoice creation handler
-async function handleMockCreateInvoice(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const invoiceData = CreateInvoiceSchema.parse(body);
-
-    // Verify client exists
-    const client = await mockClientsService.get(invoiceData.client_id, 'mock-user-1');
-    if (!client) {
-      return NextResponse.json(
-        { error: 'Client not found or access denied' },
-        { status: 404 }
-      );
-    }
-
-    // Check for duplicate invoice numbers (simple check)
-    const existingInvoices = await mockInvoicesService.list('mock-user-1');
-    const duplicate = existingInvoices.find(inv => inv.number === invoiceData.number);
-    if (duplicate) {
-      return NextResponse.json(
-        { error: 'Invoice number already exists' },
-        { status: 409 }
-      );
-    }
-
-    // Create the invoice
-    const invoiceId = await mockInvoicesService.create({
-      owner_uid: 'mock-user-1',
-      client_id: invoiceData.client_id,
-      number: invoiceData.number,
-      currency: invoiceData.currency,
-      amount_cents: invoiceData.amount_cents,
-      status: invoiceData.status,
-      due_date: invoiceData.due_date,
-      line_items: invoiceData.line_items,
-      tax_percentage: invoiceData.tax_percentage || 0,
-      notes: invoiceData.notes
-    });
-
-    const invoice = await mockInvoicesService.get(invoiceId, 'mock-user-1');
-
-    return NextResponse.json({
-      success: true,
-      invoice: {
-        ...invoice,
-        clients: {
-          name: client.name,
-          email: client.email,
-          company: client.company
-        }
-      },
-      message: `Invoice ${invoice?.number} created successfully`,
-    });
-
-  } catch (error) {
-    console.error('Mock invoice creation error:', error);
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid invoice data', details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to create invoice' },
-      { status: 500 }
-    );
-  }
-}
-
-// Mock invoice listing handler
-async function handleMockGetInvoices(request: NextRequest) {
-  try {
-    const url = new URL(request.url);
-    const clientId = url.searchParams.get('clientId');
-    const status = url.searchParams.get('status');
-
-    let invoices = await mockInvoicesService.list('mock-user-1');
-
-    // Apply filters
-    if (clientId) {
-      invoices = invoices.filter(inv => inv.client_id === clientId);
-    }
-    
-    if (status) {
-      invoices = invoices.filter(inv => inv.status === status);
-    }
-
-    // Add client data to invoices
-    const invoicesWithClients = await Promise.all(
-      invoices.map(async (invoice) => {
-        const client = await mockClientsService.get(invoice.client_id, 'mock-user-1');
-        return {
-          ...invoice,
-          clients: {
-            name: client?.name || 'Unknown Client',
-            email: client?.email,
-            company: client?.company
-          }
-        };
-      })
-    );
-
-    // Calculate summary stats
-    const stats = {
-      total: invoices.length,
-      draft: invoices.filter(i => i.status === 'draft').length,
-      sent: invoices.filter(i => i.status === 'sent').length,
-      paid: invoices.filter(i => i.status === 'paid').length,
-      overdue: invoices.filter(i => i.status === 'overdue').length,
-      totalAmount: invoices.reduce((sum, i) => sum + i.amount_cents, 0),
-    };
-
-    return NextResponse.json({
-      success: true,
-      invoices: invoicesWithClients,
-      stats,
-      pagination: {
-        offset: 0,
-        limit: 50,
-        hasMore: false,
-      }
-    });
-
-  } catch (error) {
-    console.error('Mock invoice listing error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch invoices' },
-      { status: 500 }
-    );
-  }
-}
 
 // CREATE - POST /api/invoices
 export async function POST(request: NextRequest) {
-  // Mock mode handling
-  if (MOCK_MODE) {
-    console.log('🎭 Using mock mode for invoice creation');
-    return handleMockCreateInvoice(request);
-  }
-
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.log('📡 Auth failed, falling back to mock mode');
-      return handleMockCreateInvoice(request);
+      console.error('❌ Authentication failed:', authError);
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
     }
 
     // Parse and validate request body
@@ -225,7 +86,6 @@ export async function POST(request: NextRequest) {
         status: invoiceData.status,
         due_date: invoiceData.due_date,
         line_items: invoiceData.line_items,
-        notes: invoiceData.notes,
       })
       .select(`
         *,
@@ -278,19 +138,16 @@ export async function POST(request: NextRequest) {
 
 // READ - GET /api/invoices
 export async function GET(request: NextRequest) {
-  // Mock mode handling
-  if (MOCK_MODE) {
-    console.log('🎭 Using mock mode for invoice listing');
-    return handleMockGetInvoices(request);
-  }
-
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.log('📡 Auth failed, falling back to mock mode');
-      return handleMockGetInvoices(request);
+      console.error('❌ Authentication failed:', authError);
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
     }
 
     const url = new URL(request.url);

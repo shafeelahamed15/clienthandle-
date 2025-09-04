@@ -9,13 +9,8 @@ export interface Client {
   phone?: string;
   company?: string;
   notes?: string;
+  personal_context?: string;
   last_contact_at?: string;
-  last_reply_at?: string;
-  followups_paused?: boolean;
-  unsubscribed?: boolean;
-  bounce_count?: number;
-  last_bounce_at?: string;
-  engagement_score?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -308,6 +303,7 @@ export class SupabaseService<T extends { owner_uid: string }> {
       throw error;
     }
   }
+
 
   async update(id: string, ownerUid: string, updates: Partial<T>): Promise<void> {
     try {

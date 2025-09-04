@@ -388,3 +388,150 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Missing functions that test-db API expects
+-- PostgreSQL version function (compatibility)
+CREATE OR REPLACE FUNCTION public.version()
+RETURNS TEXT AS $$
+BEGIN
+  RETURN 'ClientHandle Database Schema v1.0.0 - PostgreSQL ' || version();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Schema inspection function for debugging
+CREATE OR REPLACE FUNCTION public.get_schema_tables()
+RETURNS TABLE(table_name TEXT, table_type TEXT) AS $$
+BEGIN
+  RETURN QUERY 
+  SELECT 
+    t.table_name::TEXT,
+    t.table_type::TEXT
+  FROM information_schema.tables t
+  WHERE t.table_schema = 'public'
+  ORDER BY t.table_name;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Current usage tracking function for business intelligence
+CREATE OR REPLACE FUNCTION public.get_current_usage(user_id UUID DEFAULT auth.uid())
+RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  -- Calculate current user statistics
+  SELECT json_build_object(
+    'clients_count', COALESCE(clients.count, 0),
+    'invoices_count', COALESCE(invoices.count, 0),
+    'messages_count', COALESCE(messages.count, 0),
+    'unpaid_invoices', COALESCE(unpaid.count, 0),
+    'overdue_invoices', COALESCE(overdue.count, 0),
+    'revenue_this_month', COALESCE(revenue.amount, 0)
+  ) INTO result
+  FROM (
+    SELECT COUNT(*) as count FROM public.clients WHERE owner_uid = user_id
+  ) clients
+  CROSS JOIN (
+    SELECT COUNT(*) as count FROM public.invoices WHERE owner_uid = user_id
+  ) invoices
+  CROSS JOIN (
+    SELECT COUNT(*) as count FROM public.messages WHERE owner_uid = user_id
+  ) messages
+  CROSS JOIN (
+    SELECT COUNT(*) as count FROM public.invoices 
+    WHERE owner_uid = user_id AND status IN ('sent', 'overdue')
+  ) unpaid
+  CROSS JOIN (
+    SELECT COUNT(*) as count FROM public.invoices 
+    WHERE owner_uid = user_id AND status = 'overdue'
+  ) overdue
+  CROSS JOIN (
+    SELECT COALESCE(SUM(amount_cents), 0) as amount FROM public.invoices 
+    WHERE owner_uid = user_id 
+    AND status = 'paid' 
+    AND created_at >= DATE_TRUNC('month', CURRENT_DATE)
+  ) revenue;
+  
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Business analytics function for dashboard
+CREATE OR REPLACE FUNCTION public.get_business_analytics(user_id UUID DEFAULT auth.uid())
+RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  SELECT json_build_object(
+    'total_clients', COALESCE(clients.total, 0),
+    'active_clients', COALESCE(clients.active, 0),
+    'total_invoices', COALESCE(invoices.total, 0),
+    'paid_invoices', COALESCE(invoices.paid, 0),
+    'overdue_invoices', COALESCE(invoices.overdue, 0),
+    'total_revenue', COALESCE(revenue.total_cents, 0),
+    'this_month_revenue', COALESCE(revenue.month_cents, 0),
+    'average_invoice', COALESCE(revenue.avg_cents, 0),
+    'message_stats', json_build_object(
+      'total_sent', COALESCE(messages.sent, 0),
+      'pending_messages', COALESCE(messages.pending, 0),
+      'reply_rate', COALESCE(messages.reply_rate, 0)
+    ),
+    'last_updated', NOW()
+  ) INTO result
+  FROM (
+    SELECT 
+      COUNT(*) as total,
+      COUNT(CASE WHEN last_contact_at > NOW() - INTERVAL '30 days' THEN 1 END) as active
+    FROM public.clients WHERE owner_uid = user_id
+  ) clients
+  CROSS JOIN (
+    SELECT 
+      COUNT(*) as total,
+      COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid,
+      COUNT(CASE WHEN status = 'overdue' THEN 1 END) as overdue
+    FROM public.invoices WHERE owner_uid = user_id
+  ) invoices
+  CROSS JOIN (
+    SELECT 
+      COALESCE(SUM(amount_cents), 0) as total_cents,
+      COALESCE(SUM(CASE WHEN created_at >= DATE_TRUNC('month', CURRENT_DATE) AND status = 'paid' THEN amount_cents END), 0) as month_cents,
+      COALESCE(AVG(amount_cents), 0)::INTEGER as avg_cents
+    FROM public.invoices WHERE owner_uid = user_id AND status = 'paid'
+  ) revenue
+  CROSS JOIN (
+    SELECT 
+      COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
+      COUNT(CASE WHEN status IN ('queued', 'draft') THEN 1 END) as pending,
+      CASE 
+        WHEN COUNT(*) > 0 THEN (COUNT(CASE WHEN status = 'sent' THEN 1 END)::FLOAT / COUNT(*)::FLOAT * 100)
+        ELSE 0
+      END as reply_rate
+    FROM public.messages WHERE owner_uid = user_id
+  ) messages;
+  
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Database health check function
+CREATE OR REPLACE FUNCTION public.health_check()
+RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  SELECT json_build_object(
+    'status', 'healthy',
+    'timestamp', NOW(),
+    'database_version', version(),
+    'tables_count', (
+      SELECT COUNT(*) FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    ),
+    'functions_count', (
+      SELECT COUNT(*) FROM information_schema.routines 
+      WHERE routine_schema = 'public'
+    )
+  ) INTO result;
+  
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

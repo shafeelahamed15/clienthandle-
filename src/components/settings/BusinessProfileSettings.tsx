@@ -53,30 +53,6 @@ export function BusinessProfileSettings() {
     try {
       setIsLoading(true);
       
-      // Check for mock mode
-      if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true' || process.env.MOCK_MODE === 'true') {
-        console.log('🎭 Mock Mode: Using mock business profile data');
-        // Simulate loading delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Use mock data
-        setProfile({
-          business_name: 'Digital Solutions Pro',
-          what_you_do: 'Web development and digital marketing',
-          business_details: 'I help small businesses create professional websites and grow their online presence through SEO, social media marketing, and conversion optimization. I specialize in e-commerce stores and service-based businesses looking to scale digitally.',
-          target_clients: 'Small business owners, entrepreneurs, and startups who need professional web presence but lack technical expertise.',
-          value_proposition: 'I help businesses increase their online revenue by 40-60% through proven digital marketing strategies and conversion-optimized websites.',
-          communication_style: 'professional'
-        });
-        
-        setIsLoading(false);
-        setSaveMessage({ 
-          type: 'success', 
-          text: '🎭 Mock Mode: Business profile loaded with sample data' 
-        });
-        return;
-      }
-      
       const user = await getCurrentUser();
       
       if (!user) return;
@@ -141,22 +117,6 @@ export function BusinessProfileSettings() {
     try {
       setIsSaving(true);
       setSaveMessage(null);
-      
-      // Check for mock mode
-      if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true' || process.env.MOCK_MODE === 'true') {
-        console.log('🎭 Mock Mode: Simulating business profile save');
-        // Simulate save delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        setSaveMessage({ 
-          type: 'success', 
-          text: '🎭 Mock Mode: Business profile saved successfully!' 
-        });
-        
-        // Auto-hide success message after 3 seconds
-        setTimeout(() => setSaveMessage(null), 3000);
-        return;
-      }
       
       const user = await getCurrentUser();
       console.log('Current user for save:', {

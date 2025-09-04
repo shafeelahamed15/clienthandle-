@@ -12,7 +12,8 @@ import { EmailScheduler } from '@/components/scheduling/EmailScheduler'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase'
-import { mockClientsService, mockInvoicesService, MOCK_MODE } from '@/lib/mock-data'
+import { clientsService, invoicesService } from '@/lib/db'
+import { getCurrentUser } from '@/lib/auth'
 import { Bot, Send, Copy, Clock, User, Timer, Paperclip } from 'lucide-react'
 
 interface Client {
@@ -66,28 +67,22 @@ export function FollowupComposer({ clientId, invoiceId, editMessageId, editSched
   // Define helper functions first
   const loadClientInvoices = useCallback(async (clientId: string) => {
     try {
-      let invoicesData: Invoice[] = []
-      
-      if (MOCK_MODE) {
-        console.log('🎭 Loading mock invoices for client:', clientId)
-        invoicesData = await mockInvoicesService.getByClient(clientId, 'mock-user-1')
-      } else {
-        try {
-          const { data } = await supabase
-            .from('invoices')
-            .select('id, number, amount_cents, currency, due_date, status')
-            .eq('client_id', clientId)
-            .order('created_at', { ascending: false })
-          invoicesData = data || []
-        } catch (error) {
-          console.log('📡 Database unavailable, falling back to mock data')
-          invoicesData = await mockInvoicesService.getByClient(clientId, 'mock-user-1')
-        }
+      console.log('📋 Loading invoices for client:', clientId);
+      const user = await getCurrentUser();
+      if (!user) {
+        console.log('❌ No authenticated user found');
+        return;
       }
 
-      setInvoices(invoicesData)
+      // Use proper database service to get invoices by client
+      const allInvoices = await invoicesService.list(user.id);
+      const clientInvoices = allInvoices.filter(inv => inv.client_id === clientId);
+      
+      console.log('✅ Loaded client invoices:', clientInvoices.length);
+      setInvoices(clientInvoices);
     } catch (error) {
-      console.error('Failed to load client invoices:', error)
+      console.error('❌ Failed to load client invoices:', error);
+      setInvoices([]);
     }
   }, [])
 
@@ -95,24 +90,20 @@ export function FollowupComposer({ clientId, invoiceId, editMessageId, editSched
   const loadInitialData = useCallback(async () => {
     setIsLoading(true)
     try {
-      let clientsData: Client[] = []
-      
-      if (MOCK_MODE) {
-        console.log('🎭 Loading mock clients for follow-up composer')
-        clientsData = await mockClientsService.list('mock-user-1')
-      } else {
-        try {
-          const { data } = await supabase
-            .from('clients')
-            .select('id, name, email, company')
-            .order('name')
-          clientsData = data || []
-        } catch (error) {
-          console.log('📡 Database unavailable, falling back to mock data')
-          clientsData = await mockClientsService.list('mock-user-1')
-        }
+      console.log('📋 Loading clients for follow-up composer...');
+      const user = await getCurrentUser();
+      if (!user) {
+        console.log('❌ No authenticated user found');
+        setClients([]);
+        return;
       }
 
+      // Use proper database service to get clients
+      const clientsData = await clientsService.list(user.id, { 
+        orderBy: { column: 'name', ascending: true } 
+      });
+      
+      console.log('✅ Loaded clients:', clientsData.length);
       setClients(clientsData)
 
       // If clientId provided, select it and load its invoices

@@ -400,4 +400,4 @@ export const mockBusinessProfile = {
 };
 
 // Enable/disable mock mode
-export const MOCK_MODE = false; // Switching to real database mode
+export const MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_MODE === 'true';

@@ -16,7 +16,7 @@ import { LoadingState, LoadingCard, LoadingCardList } from '@/components/common/
 import { Breadcrumbs } from '@/components/common/Breadcrumbs';
 import { createClient } from '@/lib/supabase';
 import { getCurrentUser } from '@/lib/auth';
-import { MOCK_MODE, mockClientsService, mockInvoicesService } from '@/lib/mock-data';
+import { clientsService, invoicesService } from '@/lib/db';
 
 interface Client {
   id: string;
@@ -95,95 +95,90 @@ export default function FollowupsPage() {
 
   const loadInitialData = useCallback(async () => {
     try {
-      if (MOCK_MODE) {
-        console.log('🎭 Using mock mode for data loading');
-        // Load mock data
-        const mockClients = await mockClientsService.list('mock-user-1');
-        const mockInvoices = await mockInvoicesService.list('mock-user-1');
-        
-        console.log('📋 Loaded mock clients:', mockClients.map(c => ({ id: c.id, name: c.name })));
-        setClients(mockClients);
-        const transformedInvoices = mockInvoices.map(inv => ({
-          ...inv,
-          amount: (inv.amount_cents || 0) / 100
-        }));
-        setInvoices(transformedInvoices);
-        setTimelineItems([]);
-        setStats({ scheduled: 0, sent: 0, replied: 0, opened: 0 });
-        setIsLoading(false);
+      console.log('🗄️ Loading followups data...');
+
+      const user = await getCurrentUser();
+      if (!user) {
+        console.log('❌ No authenticated user found');
         return;
       }
 
-      console.log('🗄️ Using real database mode for data loading');
-
-      const user = await getCurrentUser();
-      if (!user) return;
-
-      // Load clients, invoices, messages, and scheduled emails in parallel
-      const [clientsResponse, invoicesResponse, messagesResponse, schedulesResponse] = await Promise.all([
-        supabase
-          .from('clients')
-          .select('id, name, email, company')
-          .eq('owner_uid', user.id)
-          .order('name'),
-        
-        supabase
-          .from('invoices')
-          .select('id, number, due_date, status, amount_cents, currency, client_id')
-          .eq('owner_uid', user.id)
-          .order('created_at', { ascending: false }),
-        
-        supabase
-          .from('messages')
-          .select(`
-            id, type, tone, subject, body, scheduled_at, status, sent_at, client_id,
-            clients!inner(name)
-          `)
-          .eq('owner_uid', user.id)
-          .eq('type', 'followup')
-          .order('created_at', { ascending: false })
-          .limit(50),
-          
-        supabase
-          .from('email_schedules')
-          .select(`
-            id, name, email_subject, email_body, status, scheduled_at, next_run_at, 
-            send_count, created_at, client_id,
-            clients!inner(name)
-          `)
-          .eq('owner_uid', user.id)
-          .order('created_at', { ascending: false })
-          .limit(50)
+      // Load clients and invoices using proper database services
+      const [clients, invoices] = await Promise.all([
+        clientsService.list(user.id, { orderBy: { column: 'name', ascending: true } }),
+        invoicesService.list(user.id, { orderBy: { column: 'created_at', ascending: false } })
       ]);
+      
+      console.log('📋 Loaded clients:', clients.length);
+      console.log('📋 Loaded invoices:', invoices.length);
+      
+      // Transform clients data
+      setClients(clients.map(client => ({
+        id: client.id!,
+        name: client.name,
+        email: client.email,
+        company: client.company
+      })));
+      
+      // Transform invoices data
+      const transformedInvoices = invoices.map(inv => ({
+        id: inv.id!,
+        number: inv.number,
+        due_date: inv.due_date,
+        status: inv.status,
+        amount: (inv.amount_cents || 0) / 100,
+        currency: inv.currency,
+        client_id: inv.client_id
+      }));
+      setInvoices(transformedInvoices);
+      
+      // Load messages and schedules for timeline (using direct queries for complex joins)
+      try {
+        const [messagesResponse, schedulesResponse] = await Promise.all([
+          supabase
+            .from('messages')
+            .select(`
+              id, type, tone, subject, body, scheduled_at, status, sent_at, client_id,
+              clients!inner(name)
+            `)
+            .eq('owner_uid', user.id)
+            .eq('type', 'followup')
+            .order('created_at', { ascending: false })
+            .limit(50),
+            
+          supabase
+            .from('email_schedules')
+            .select(`
+              id, name, email_subject, email_body, status, scheduled_at, next_run_at, 
+              send_count, created_at, client_id,
+              clients!inner(name)
+            `)
+            .eq('owner_uid', user.id)
+            .order('created_at', { ascending: false })
+            .limit(50)
+        ]);
 
-      if (clientsResponse.data) setClients(clientsResponse.data);
-      
-      if (invoicesResponse.data) {
-        const transformedInvoices = invoicesResponse.data.map(inv => ({
-          ...inv,
-          amount: (inv.amount_cents || 0) / 100
-        }));
-        setInvoices(transformedInvoices);
-      }
-      
-      // Combine messages and schedules for timeline
-      const allMessages = messagesResponse.data || [];
-      const allSchedules = schedulesResponse.data || [];
-      
-      console.log('📧 Messages loaded:', allMessages);
-      console.log('📅 Schedules loaded:', allSchedules);
-      
-      if (allMessages.length > 0 || allSchedules.length > 0) {
-        loadTimelineData(allMessages, allSchedules);
-        calculateStats(allMessages);
+        const allMessages = messagesResponse.data || [];
+        const allSchedules = schedulesResponse.data || [];
+        
+        console.log('📧 Messages loaded:', allMessages.length);
+        console.log('📅 Schedules loaded:', allSchedules.length);
+        
+        if (allMessages.length > 0 || allSchedules.length > 0) {
+          loadTimelineData(allMessages, allSchedules);
+          calculateStats(allMessages);
+        }
+      } catch (timelineError) {
+        console.warn('⚠️ Could not load timeline data:', timelineError);
+        // Continue without timeline data - tables might not exist yet
       }
 
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error('❌ Failed to load followups data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, []);
 
   // Load initial data
   useEffect(() => {

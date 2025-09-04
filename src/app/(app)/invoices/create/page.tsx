@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LoadingState } from "@/components/common/LoadingState";
 import { InvoiceForm, type InvoiceFormData } from "@/components/invoices/InvoiceForm";
@@ -94,7 +94,7 @@ export default function CreateInvoicePage() {
           total: item.total_cents / 100,
         })),
         selectedClient: selectedClient || null,
-        notes: data.notes || '',
+        notes: '',
       });
 
       // Show success message
@@ -114,7 +114,7 @@ export default function CreateInvoicePage() {
     router.back();
   };
 
-  const handleDataChange = (data: {
+  const handleDataChange = useCallback((data: {
     invoiceNumber: string
     currency: string
     dueDate: string
@@ -124,7 +124,7 @@ export default function CreateInvoicePage() {
     notes: string
   }) => {
     setPreviewData(data);
-  };
+  }, []);
 
   if (loading) {
     return (

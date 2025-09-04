@@ -100,23 +100,23 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md border-0 shadow-apple-lg">
+      <DialogContent className="sm:max-w-md bg-white border border-gray-200 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-h2">Add New Client</DialogTitle>
-          <DialogDescription className="text-body text-muted-foreground">
+          <DialogTitle className="text-2xl font-semibold text-gray-900">Add New Client</DialogTitle>
+          <DialogDescription className="text-sm text-gray-600">
             Add a new client to your database to start managing invoices and communications.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg border border-destructive/20">
+            <div className="p-3 text-sm text-red-700 bg-red-50 rounded-lg border border-red-200">
               {error}
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-body-small font-medium">
+            <Label htmlFor="name" className="text-sm font-medium text-gray-700">
               Full Name *
             </Label>
             <Input
@@ -126,12 +126,12 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
               onChange={handleChange}
               placeholder="Enter client's full name"
               required
-              className="h-10 bg-input border-0 focus:ring-2 focus:ring-primary/20"
+              className="h-10 bg-gray-50 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 placeholder-gray-500"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-body-small font-medium">
+            <Label htmlFor="email" className="text-sm font-medium text-gray-700">
               Email Address
             </Label>
             <Input
@@ -141,12 +141,12 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
               value={formData.email}
               onChange={handleChange}
               placeholder="client@example.com"
-              className="h-10 bg-input border-0 focus:ring-2 focus:ring-primary/20"
+              className="h-10 bg-gray-50 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 placeholder-gray-500"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-body-small font-medium">
+            <Label htmlFor="phone" className="text-sm font-medium text-gray-700">
               Phone Number
             </Label>
             <Input
@@ -156,12 +156,12 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
               value={formData.phone}
               onChange={handleChange}
               placeholder="+1 (555) 123-4567"
-              className="h-10 bg-input border-0 focus:ring-2 focus:ring-primary/20"
+              className="h-10 bg-gray-50 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 placeholder-gray-500"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company" className="text-body-small font-medium">
+            <Label htmlFor="company" className="text-sm font-medium text-gray-700">
               Company
             </Label>
             <Input
@@ -170,12 +170,12 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
               value={formData.company}
               onChange={handleChange}
               placeholder="Company name (optional)"
-              className="h-10 bg-input border-0 focus:ring-2 focus:ring-primary/20"
+              className="h-10 bg-gray-50 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 placeholder-gray-500"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes" className="text-body-small font-medium">
+            <Label htmlFor="notes" className="text-sm font-medium text-gray-700">
               Notes
             </Label>
             <textarea
@@ -185,7 +185,7 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
               onChange={handleChange}
               placeholder="Any additional notes about this client..."
               rows={3}
-              className="w-full px-3 py-2 bg-input border-0 rounded-lg focus:ring-2 focus:ring-primary/20 resize-none text-body-small"
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg resize-none text-gray-900 placeholder-gray-500 text-sm"
             />
           </div>
 
@@ -195,14 +195,14 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded }: AddClient
               variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={loading}
-              className="flex-1 animate-apple-press"
+              className="flex-1 bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 font-medium"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={loading || !formData.name.trim()}
-              className="flex-1 animate-apple-press shadow-apple-sm"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               {loading ? "Adding..." : "Add Client"}
             </Button>
